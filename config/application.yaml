@@ -1,0 +1,52 @@
+app:
+  name: go-gin-gorm-example
+  env: local
+
+server:
+  http:
+    host: 0.0.0.0
+    port: 8080
+
+database:
+  postgres:
+    host: localhost
+    port: 5432
+    name: testdb
+    user: admin
+    password: admin
+    ssl_mode: disable
+    migrations:
+      path: database/migrations
+
+    pool:
+      max_open_conns: 25
+      max_idle_conns: 10
+      conn_max_lifetime: 30m
+
+kafka:
+  bootstrap_servers:
+    - localhost:9092
+
+  client_id: order-service
+
+  producer:
+    acks: all
+    retries: 5
+    linger_ms: 5
+    batch_size: 65536
+    compression_type: zstd
+    enable_idempotence: true
+
+  consumer:
+    group_id: order-service-group
+    auto_offset_reset: earliest
+    enable_auto_commit: false
+    max_poll_records: 500
+    session_timeout_ms: 10000
+    max_poll_interval_ms: 300000
+
+  topics:
+    orders:
+      name: orders.v1
+      partitions: 3
+      replication_factor: 1
