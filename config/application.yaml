@@ -50,3 +50,11 @@ kafka:
       name: orders.v1
       partitions: 3
       replication_factor: 1
+
+monitoring:
+  prometheus:
+    enabled: true
+    metrics_path: /metrics      # endpoint Go-сервиса для Prometheus
+    port: 8080                  # тот же, что и HTTP порт
+    scrape_interval: 15s
+    job_name: go-service

@@ -1,61 +1,136 @@
 version: "3.9"
 
 services:
+  # =========================
+  # PostgreSQL
+  # =========================
   postgres:
     image: postgres:15
     container_name: postgres
     restart: unless-stopped
-
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: testdb
-
     ports:
       - "5432:5432"
-
     volumes:
       - pg_data:/var/lib/postgresql/data
 
+  # =========================
+  # Kafka (KRaft)
+  # =========================
   kafka:
     image: apache/kafka:3.7.0
     container_name: broker
     hostname: broker
     restart: unless-stopped
-
     ports:
       - "9092:9092"
-
     environment:
-      # ===== KRaft single-node =====
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-
-      # ===== LISTENERS (ОДНОЙ СТРОКОЙ!) =====
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://broker:9093
-
-      # ===== ADVERTISED (ТОЛЬКО клиентский) =====
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-
-      # ===== PROTOCOL MAP =====
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
-
-      # ===== CONTROLLER =====
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker:9093
-
-      # ===== INTER-BROKER =====
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-
-      # ===== SINGLE NODE SAFETY =====
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 3
-
-      # ===== DEV =====
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  # =========================
+  # Kafka Exporter
+  # =========================
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:latest
+    container_name: kafka-exporter
+    restart: unless-stopped
+    command:
+      - "--kafka.server=kafka:9092"
+    ports:
+      - "9308:9308"
+    depends_on:
+      - kafka
+
+  # =========================
+  # Postgres Exporter
+  # =========================
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://admin:admin@postgres:5432/testdb?sslmode=disable"
+    ports:
+      - "9187:9187"
+    depends_on:
+      - postgres
+
+  # =========================
+  # Prometheus
+  # =========================
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yaml:/etc/prometheus/prometheus.yml
+
+  # =========================
+  # Grafana
+  # =========================
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    depends_on:
+      - prometheus
+
+  # =========================
+  # Loki
+  # =========================
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    user: "10001:10001"  # ДОБАВЬТЕ ЭТУ СТРОКУ! (пользователь loki в контейнере)
+    volumes:
+      - ./observability/loki-config.yaml:/etc/loki/loki-config.yaml
+      - loki_data:/loki
+    command:
+      - "-config.file=/etc/loki/loki-config.yaml"
+      - "-target=all"  # Явно указываем цели (опционально)
+
+  # =========================
+  # Promtail
+  # =========================
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: promtail
+    restart: unless-stopped
+    ports:
+      - "9080:9080"
+    volumes:
+      - ./observability/promtail-config.yaml:/etc/promtail/promtail-config.yaml
+      - /var/log:/var/log
+    command: -config.file=/etc/promtail/promtail-config.yaml
+    depends_on:
+      - loki
 
 volumes:
   pg_data:
+  loki_data:

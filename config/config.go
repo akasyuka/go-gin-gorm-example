@@ -21,10 +21,11 @@ func Load(path string) (*Config, error) {
 }
 
 type Config struct {
-	App      AppConfig      `yaml:"app"`
-	Server   ServerConfig   `yaml:"server"`
-	Database DatabaseConfig `yaml:"database"`
-	Kafka    KafkaConfig    `yaml:"kafka"`
+	App        AppConfig        `yaml:"app"`
+	Server     ServerConfig     `yaml:"server"`
+	Database   DatabaseConfig   `yaml:"database"`
+	Kafka      KafkaConfig      `yaml:"kafka"`
+	Monitoring MonitoringConfig `yaml:"observability"` // новый блок
 }
 
 type AppConfig struct {
@@ -124,4 +125,18 @@ type KafkaSASL struct {
 	Mechanism string `yaml:"mechanism"`
 	Username  string `yaml:"username"`
 	Password  string `yaml:"password"`
+}
+
+// ==================== Новый блок для мониторинга ====================
+
+type MonitoringConfig struct {
+	Prometheus PrometheusConfig `yaml:"prometheus"`
+}
+
+type PrometheusConfig struct {
+	Enabled        bool   `yaml:"enabled"`
+	MetricsPath    string `yaml:"metrics_path"`
+	Port           int    `yaml:"port"`
+	ScrapeInterval string `yaml:"scrape_interval"` // можно парсить в time.Duration
+	JobName        string `yaml:"job_name"`
 }

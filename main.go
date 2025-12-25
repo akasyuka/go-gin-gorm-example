@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/akasyuka/go-gin-gorm-example/config"
 	"github.com/akasyuka/go-gin-gorm-example/controller"
 	"github.com/akasyuka/go-gin-gorm-example/database"
+	"github.com/akasyuka/go-gin-gorm-example/observability"
 	"github.com/akasyuka/go-gin-gorm-example/repository"
 	"github.com/akasyuka/go-gin-gorm-example/service"
 	"github.com/gin-gonic/gin"
@@ -31,10 +33,27 @@ func main() {
 
 	// ===== Setup Gin router =====
 	r := gin.Default()
+
+	// ===== Prometheus metrics =====
+	if cfg.Monitoring.Prometheus.Enabled {
+		// Инициализация метрик
+		observability.InitMetrics()
+
+		// Middleware для REST маршрутов
+		r.Use(observability.GinMetricsMiddleware())
+
+		// Endpoint /metrics
+		r.GET(cfg.Monitoring.Prometheus.MetricsPath, gin.WrapH(observability.MetricsHandler()))
+
+		fmt.Printf("Prometheus metrics enabled: path=%s\n", cfg.Monitoring.Prometheus.MetricsPath)
+	}
+
+	// ===== Register user routes =====
 	userController.RegisterRoutes(r)
 
 	// ===== Run server =====
-	if err := r.Run(":8080"); err != nil {
+	addr := fmt.Sprintf("%s:%d", cfg.Server.HTTP.Host, cfg.Server.HTTP.Port)
+	if err := r.Run(addr); err != nil {
 		log.Fatalf("failed to run server: %v", err)
 	}
 }
