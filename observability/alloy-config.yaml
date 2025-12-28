@@ -1,0 +1,83 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+# =====================
+# Clients (куда отправляем)
+# =====================
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    batchsize: 102400
+    batchwait: 1s
+  - url: http://prometheus:9090/api/v1/write
+    remote_timeout: 10s
+
+# =====================
+# Scrape configs (метрики и логи)
+# =====================
+scrape_configs:
+
+  # -------------------
+  # Метрики Postgres
+  # -------------------
+  - job_name: "postgres-metrics"
+    static_configs:
+      - targets:
+          - "postgres-exporter:9187"
+
+  # -------------------
+  # Метрики Kafka
+  # -------------------
+  - job_name: "kafka-metrics"
+    static_configs:
+      - targets:
+          - "kafka-exporter:9308"
+
+  # -------------------
+  # Логи системные (Postgres)
+  # -------------------
+  - job_name: "postgres-logs"
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          app: postgres
+          env: dev
+          __path__: /var/lib/postgresql/data/log/*.log
+
+  # -------------------
+  # Логи Kafka
+  # -------------------
+  - job_name: "kafka-logs"
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          app: kafka
+          env: dev
+          __path__: /var/lib/kafka/logs/*.log
+
+  # -------------------
+  # Логи приложения (Go, Java и т.д.)
+  # -------------------
+  - job_name: "app-logs"
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          app: my-app
+          env: dev
+          __path__: /var/log/my-app/*.log
+
+# =====================
+# Pipeline stages (обогащение и парсинг)
+# =====================
+pipeline_stages:
+  - json:
+      expressions:
+        level: level
+        msg: message
+  - labels:
+      level: ""
+      app: ""
+      env: ""

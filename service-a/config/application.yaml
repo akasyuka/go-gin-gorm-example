@@ -1,5 +1,5 @@
 app:
-  name: go-gin-gorm-example
+  name: service-a
   env: local
 
 server:

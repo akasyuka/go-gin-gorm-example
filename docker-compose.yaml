@@ -1,12 +1,10 @@
-version: "3.9"
-
 services:
   # =========================
-  # PostgreSQL
+  # PostgreSQL (APP)
   # =========================
-  postgres:
+  postgres-app:
     image: postgres:15
-    container_name: postgres
+    container_name: postgres-app
     restart: unless-stopped
     environment:
       POSTGRES_USER: admin
@@ -15,26 +13,42 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - pg_app_data:/var/lib/postgresql/data
+
+  # =========================
+  # PostgreSQL (KEYCLOAK)
+  # =========================
+  postgres-keycloak:
+    image: postgres:15
+    container_name: postgres-keycloak
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+      POSTGRES_DB: keycloak
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_keycloak_data:/var/lib/postgresql/data
 
   # =========================
   # Kafka (KRaft)
   # =========================
   kafka:
     image: apache/kafka:3.7.0
-    container_name: broker
-    hostname: broker
+    container_name: kafka
+    hostname: kafka
     restart: unless-stopped
     ports:
       - "9092:9092"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://broker:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://kafka:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
@@ -58,18 +72,18 @@ services:
       - kafka
 
   # =========================
-  # Postgres Exporter
+  # Postgres Exporter (APP DB)
   # =========================
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter
     container_name: postgres-exporter
     restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: "postgresql://admin:admin@postgres:5432/testdb?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://admin:admin@postgres-app:5432/testdb?sslmode=disable"
     ports:
       - "9187:9187"
     depends_on:
-      - postgres
+      - postgres-app
 
   # =========================
   # Prometheus
@@ -81,7 +95,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./observability/prometheus.yaml:/etc/prometheus/prometheus.yml
+      - ./metrics/prometheus.yaml:/etc/prometheus/prometheus.yml
 
   # =========================
   # Grafana
@@ -97,6 +111,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
     depends_on:
       - prometheus
+      - loki
 
   # =========================
   # Loki
@@ -107,30 +122,77 @@ services:
     restart: unless-stopped
     ports:
       - "3100:3100"
-    user: "10001:10001"  # ДОБАВЬТЕ ЭТУ СТРОКУ! (пользователь loki в контейнере)
+    user: "10001:10001"
     volumes:
-      - ./observability/loki-config.yaml:/etc/loki/loki-config.yaml
+      - ./metrics/loki-config.yaml:/etc/loki/loki-config.yaml
       - loki_data:/loki
     command:
       - "-config.file=/etc/loki/loki-config.yaml"
-      - "-target=all"  # Явно указываем цели (опционально)
+      - "-target=all"
 
   # =========================
-  # Promtail
+  # Node Exporter
   # =========================
-  promtail:
-    image: grafana/promtail:2.9.0
-    container_name: promtail
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+
+  # =========================
+  # Grafana Alloy
+  # =========================
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
     restart: unless-stopped
     ports:
       - "9080:9080"
     volumes:
-      - ./observability/promtail-config.yaml:/etc/promtail/promtail-config.yaml
+      - ./metrics/alloy-config.yaml:/etc/alloy/alloy.yaml
       - /var/log:/var/log
-    command: -config.file=/etc/promtail/promtail-config.yaml
     depends_on:
       - loki
+      - prometheus
 
+  # =========================
+  # Keycloak
+  # =========================
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0.2
+    container_name: keycloak
+    restart: unless-stopped
+    command:
+      - start-dev
+      - --http-port=8180
+    ports:
+      - "8180:8180"
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres-keycloak:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: localhost
+    depends_on:
+      - postgres-keycloak
+
+# =========================
+# Volumes
+# =========================
 volumes:
-  pg_data:
+  pg_app_data:
+  pg_keycloak_data:
   loki_data:

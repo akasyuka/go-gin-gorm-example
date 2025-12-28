@@ -3,8 +3,8 @@ package service
 import (
 	"bytes"
 	"fmt"
-	"github.com/akasyuka/go-gin-gorm-example/model"
-	"github.com/akasyuka/go-gin-gorm-example/repository"
+	"github.com/akasyuka/service-a/model"
+	"github.com/akasyuka/service-a/repository"
 	"io"
 	"net/http"
 	"time"
@@ -59,7 +59,12 @@ func (s *userService) SendUser(u model.User) {
 	if err != nil {
 		panic(err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	body, _ := io.ReadAll(resp.Body)
 	fmt.Println("Status:", resp.Status)

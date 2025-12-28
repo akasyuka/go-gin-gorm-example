@@ -1,4 +1,4 @@
-module github.com/akasyuka/go-gin-gorm-example
+module github.com/akasyuka/service-a
 
 go 1.24.0
 

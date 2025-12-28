@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/akasyuka/go-gin-gorm-example/model"
+	"github.com/akasyuka/service-a/model"
 	"gorm.io/gorm"
 )
 

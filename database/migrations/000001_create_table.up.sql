@@ -1,1 +1,0 @@
-create table golang_migration();

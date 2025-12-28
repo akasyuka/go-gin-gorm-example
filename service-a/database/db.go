@@ -2,7 +2,7 @@ package database
 
 import (
 	"fmt"
-	"github.com/akasyuka/go-gin-gorm-example/config"
+	"github.com/akasyuka/service-a/config"
 	"time"
 
 	"gorm.io/driver/postgres"

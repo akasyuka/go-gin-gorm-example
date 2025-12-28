@@ -25,7 +25,7 @@ type Config struct {
 	Server     ServerConfig     `yaml:"server"`
 	Database   DatabaseConfig   `yaml:"database"`
 	Kafka      KafkaConfig      `yaml:"kafka"`
-	Monitoring MonitoringConfig `yaml:"observability"` // новый блок
+	Monitoring MonitoringConfig `yaml:"metrics"` // новый блок
 }
 
 type AppConfig struct {

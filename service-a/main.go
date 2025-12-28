@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
+	"github.com/akasyuka/service-a/config"
+	"github.com/akasyuka/service-a/controller"
+	"github.com/akasyuka/service-a/database"
+	"github.com/akasyuka/service-a/repository"
+	"github.com/akasyuka/service-a/service"
 	"log"
 
-	"github.com/akasyuka/go-gin-gorm-example/config"
-	"github.com/akasyuka/go-gin-gorm-example/controller"
-	"github.com/akasyuka/go-gin-gorm-example/database"
-	"github.com/akasyuka/go-gin-gorm-example/observability"
-	"github.com/akasyuka/go-gin-gorm-example/repository"
-	"github.com/akasyuka/go-gin-gorm-example/service"
+	"github.com/akasyuka/service-a/metrics"
 	"github.com/gin-gonic/gin"
 )
 
@@ -37,13 +37,13 @@ func main() {
 	// ===== Prometheus metrics =====
 	if cfg.Monitoring.Prometheus.Enabled {
 		// Инициализация метрик
-		observability.InitMetrics()
+		metrics.InitMetrics()
 
 		// Middleware для REST маршрутов
-		r.Use(observability.GinMetricsMiddleware())
+		r.Use(metrics.GinMetricsMiddleware())
 
 		// Endpoint /metrics
-		r.GET(cfg.Monitoring.Prometheus.MetricsPath, gin.WrapH(observability.MetricsHandler()))
+		r.GET(cfg.Monitoring.Prometheus.MetricsPath, gin.WrapH(metrics.MetricsHandler()))
 
 		fmt.Printf("Prometheus metrics enabled: path=%s\n", cfg.Monitoring.Prometheus.MetricsPath)
 	}

@@ -1,9 +1,9 @@
 package controller
 
 import (
+	"github.com/akasyuka/service-a/service"
 	"net/http"
 
-	"github.com/akasyuka/go-gin-gorm-example/service"
 	"github.com/gin-gonic/gin"
 )
 
