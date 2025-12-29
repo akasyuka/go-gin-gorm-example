@@ -25,7 +25,8 @@ type Config struct {
 	Server     ServerConfig     `yaml:"server"`
 	Database   DatabaseConfig   `yaml:"database"`
 	Kafka      KafkaConfig      `yaml:"kafka"`
-	Monitoring MonitoringConfig `yaml:"metrics"` // новый блок
+	Monitoring MonitoringConfig `yaml:"metrics"`
+	Auth       AuthConfig       `yaml:"auth"`
 }
 
 type AppConfig struct {
@@ -139,4 +140,14 @@ type PrometheusConfig struct {
 	Port           int    `yaml:"port"`
 	ScrapeInterval string `yaml:"scrape_interval"` // можно парсить в time.Duration
 	JobName        string `yaml:"job_name"`
+}
+
+// ==================== Keycloak / JWT ====================
+
+type AuthConfig struct {
+	Keycloak KeycloakConfig `yaml:"keycloak"`
+}
+
+type KeycloakConfig struct {
+	JWKSURL string `yaml:"jwks_url"` // URL для JWKS (для stateless проверки токена)
 }

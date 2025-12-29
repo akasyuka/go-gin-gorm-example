@@ -57,4 +57,8 @@ monitoring:
     metrics_path: /metrics      # endpoint Go-сервиса для Prometheus
     port: 8080                  # тот же, что и HTTP порт
     scrape_interval: 15s
-    job_name: go-service
+    job_name: service-a
+
+auth:
+  keycloak:
+    jwks_url: "http://localhost:8180/realms/myrealm/protocol/openid-connect/certs"
