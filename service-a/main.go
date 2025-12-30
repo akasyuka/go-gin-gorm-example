@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 
 	"github.com/akasyuka/service-a/config"
 	"github.com/akasyuka/service-a/controller"
@@ -11,7 +12,11 @@ import (
 	"github.com/akasyuka/service-a/repository"
 	"github.com/akasyuka/service-a/security"
 	"github.com/akasyuka/service-a/service"
+
+	userv1 "github.com/akasyuka/service-a/gen/user/v1"
+
 	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -27,20 +32,31 @@ func main() {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
-	// ===== Initialize repositories / services / controllers =====
+	// ===== Initialize repositories / services =====
 	userRepo := repository.NewUserRepository(db)
 	userService := service.NewUserService(userRepo)
-	userController := controller.NewUserController(userService)
 
-	// ===== Setup Gin router =====
+	// ===== gRPC controller =====
+	userGrpcController := controller.NewUserGrpcController(userService)
+
+	// =====================================================
+	// ================= REST (Gin) ========================
+	// =====================================================
+
 	r := gin.Default()
 
 	// ===== Prometheus metrics =====
 	if cfg.Monitoring.Prometheus.Enabled {
 		metrics.InitMetrics()
 		r.Use(metrics.GinMetricsMiddleware())
-		r.GET(cfg.Monitoring.Prometheus.MetricsPath, gin.WrapH(metrics.MetricsHandler()))
-		fmt.Printf("Prometheus metrics enabled: path=%s\n", cfg.Monitoring.Prometheus.MetricsPath)
+		r.GET(
+			cfg.Monitoring.Prometheus.MetricsPath,
+			gin.WrapH(metrics.MetricsHandler()),
+		)
+		fmt.Printf(
+			"Prometheus metrics enabled: path=%s\n",
+			cfg.Monitoring.Prometheus.MetricsPath,
+		)
 	}
 
 	// ===== Keycloak JWT middleware =====
@@ -49,21 +65,54 @@ func main() {
 		log.Fatalf("failed to initialize JWKS: %v", err)
 	}
 
-	// Приватные роуты через JWT middleware
 	private := r.Group("/api")
 	private.Use(security.JWTMiddleware(jwks))
 
-	// ===== Register user routes на RouterGroup =====
-	userController.RegisterRoutes(private)
-
-	// ===== Optional public routes =====
+	// ===== Public routes =====
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "UP"})
 	})
 
-	// ===== Run server =====
-	addr := fmt.Sprintf("%s:%d", cfg.Server.HTTP.Host, cfg.Server.HTTP.Port)
-	if err := r.Run(addr); err != nil {
-		log.Fatalf("failed to run server: %v", err)
+	// ===== Run HTTP server (async) =====
+	go func() {
+		addr := fmt.Sprintf(
+			"%s:%d",
+			cfg.Server.HTTP.Host,
+			cfg.Server.HTTP.Port,
+		)
+		if err := r.Run(addr); err != nil {
+			log.Fatalf("failed to run HTTP server: %v", err)
+		}
+	}()
+
+	// =====================================================
+	// ================= gRPC ==============================
+	// =====================================================
+
+	grpcAddr := fmt.Sprintf(
+		"%s:%d",
+		cfg.Server.GRPC.Host,
+		cfg.Server.GRPC.Port,
+	)
+
+	lis, err := net.Listen("tcp", grpcAddr)
+	if err != nil {
+		log.Fatalf("failed to listen gRPC: %v", err)
+	}
+
+	grpcServer := grpc.NewServer(
+	// тут позже:
+	// grpc.UnaryInterceptor(...)
+	)
+
+	userv1.RegisterUserServiceServer(
+		grpcServer,
+		userGrpcController,
+	)
+
+	fmt.Printf("gRPC server started at %s\n", grpcAddr)
+
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("failed to run gRPC server: %v", err)
 	}
 }

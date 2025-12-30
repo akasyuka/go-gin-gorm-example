@@ -34,8 +34,10 @@ type AppConfig struct {
 	Env  string `yaml:"env"`
 }
 
+// ===== Server config =====
 type ServerConfig struct {
 	HTTP HTTPServerConfig `yaml:"http"`
+	GRPC GRPCServerConfig `yaml:"grpc"` // новый блок для gRPC
 }
 
 type HTTPServerConfig struct {
@@ -43,6 +45,12 @@ type HTTPServerConfig struct {
 	Port int    `yaml:"port"`
 }
 
+type GRPCServerConfig struct {
+	Host string `yaml:"host"`
+	Port int    `yaml:"port"`
+}
+
+// ===== Database config =====
 type DatabaseConfig struct {
 	Postgres PostgresConfig `yaml:"postgres"`
 }
@@ -68,6 +76,7 @@ type DBPool struct {
 	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
 }
 
+// ===== Kafka config =====
 type KafkaConfig struct {
 	BootstrapServers []string      `yaml:"bootstrap_servers"`
 	ClientID         string        `yaml:"client_id"`
@@ -128,26 +137,24 @@ type KafkaSASL struct {
 	Password  string `yaml:"password"`
 }
 
-// ==================== Новый блок для мониторинга ====================
-
+// ===== Monitoring / Prometheus =====
 type MonitoringConfig struct {
 	Prometheus PrometheusConfig `yaml:"prometheus"`
 }
 
 type PrometheusConfig struct {
-	Enabled        bool   `yaml:"enabled"`
-	MetricsPath    string `yaml:"metrics_path"`
-	Port           int    `yaml:"port"`
-	ScrapeInterval string `yaml:"scrape_interval"` // можно парсить в time.Duration
-	JobName        string `yaml:"job_name"`
+	Enabled        bool          `yaml:"enabled"`
+	MetricsPath    string        `yaml:"metrics_path"`
+	Port           int           `yaml:"port"`
+	ScrapeInterval time.Duration `yaml:"scrape_interval"` // теперь time.Duration
+	JobName        string        `yaml:"job_name"`
 }
 
-// ==================== Keycloak / JWT ====================
-
+// ===== Auth / Keycloak =====
 type AuthConfig struct {
 	Keycloak KeycloakConfig `yaml:"keycloak"`
 }
 
 type KeycloakConfig struct {
-	JWKSURL string `yaml:"jwks_url"` // URL для JWKS (для stateless проверки токена)
+	JWKSURL string `yaml:"jwks_url"`
 }

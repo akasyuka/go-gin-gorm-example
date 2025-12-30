@@ -95,7 +95,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./metrics/prometheus.yaml:/etc/prometheus/prometheus.yml
+      - ./observability/prometheus.yaml:/etc/prometheus/prometheus.yml
 
   # =========================
   # Grafana
@@ -124,7 +124,7 @@ services:
       - "3100:3100"
     user: "10001:10001"
     volumes:
-      - ./metrics/loki-config.yaml:/etc/loki/loki-config.yaml
+      - ./observability/loki-config.yaml:/etc/loki/loki-config.yaml
       - loki_data:/loki
     command:
       - "-config.file=/etc/loki/loki-config.yaml"
@@ -158,7 +158,7 @@ services:
     ports:
       - "9080:9080"
     volumes:
-      - ./metrics/alloy-config.yaml:/etc/alloy/alloy.yaml
+      - ./observability/alloy-config.yaml:/etc/alloy/alloy.yaml
       - /var/log:/var/log
     depends_on:
       - loki
